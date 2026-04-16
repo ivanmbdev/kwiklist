@@ -32,9 +32,9 @@ function ToastItem({
   }, [toast.id, onRemove]);
 
   const styles = {
-    success: 'bg-emerald-500',
+    success: 'bg-indigo-500',
     error: 'bg-red-500',
-    info: 'bg-slate-700',
+    info: 'bg-zinc-700',
   };
 
   const icons = {

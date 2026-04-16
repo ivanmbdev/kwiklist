@@ -20,6 +20,9 @@ export const listsApi = {
   delete: (id: string) =>
     axios.delete(`${API_URL}/${id}`),
 
+  updateName: (id: string, name: string) =>
+    axios.put<ShoppingList>(`${API_URL}/${id}`, { name }),
+
   join: (listId: string, userId: string) =>
     axios.post<ShoppingList>(`${API_URL}/${listId}/join`, { userId }),
 

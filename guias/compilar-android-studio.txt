@@ -1,0 +1,271 @@
+===========================================================
+ GUÍA: Compilar KwikList como APK con Android Studio
+===========================================================
+
+Última actualización: abril 2026
+
+Esta guía explica cómo generar un APK instalable en
+Android a partir del proyecto KwikList (React + Capacitor).
+
+
+-----------------------------------------------------------
+1. PREREQUISITOS
+-----------------------------------------------------------
+
+Instala lo siguiente en tu PC antes de empezar:
+
+a) Node.js (versión 18 o superior)
+   https://nodejs.org/
+   Comprueba: node -v  y  npm -v
+
+b) Android Studio (última versión estable)
+   https://developer.android.com/studio
+   Durante la instalación, acepta los SDK que proponga.
+
+c) JDK 17 (normalmente viene con Android Studio)
+   Comprueba: java -version
+
+d) Variables de entorno (Windows):
+   - ANDROID_HOME = C:\Users\TU_USUARIO\AppData\Local\Android\Sdk
+   - Añadir a PATH:
+     %ANDROID_HOME%\platform-tools
+     %ANDROID_HOME%\tools
+
+   En macOS/Linux:
+   export ANDROID_HOME=$HOME/Android/Sdk
+   export PATH=$PATH:$ANDROID_HOME/platform-tools
+
+
+-----------------------------------------------------------
+2. INSTALAR DEPENDENCIAS DEL PROYECTO
+-----------------------------------------------------------
+
+Abre una terminal en la raíz del proyecto (donde está
+package.json) y ejecuta:
+
+  npm install
+
+Esto instala todas las dependencias, incluidas:
+  - @capacitor/core
+  - @capacitor/cli
+  - @capacitor/android
+  - @capacitor/assets
+
+
+-----------------------------------------------------------
+3. INICIALIZAR CAPACITOR (solo la primera vez)
+-----------------------------------------------------------
+
+Si la carpeta "android/" no existe todavía:
+
+  npx cap add android
+
+Esto crea el proyecto nativo de Android dentro de
+la carpeta android/.
+
+
+-----------------------------------------------------------
+4. CONFIGURAR LA URL DEL SERVIDOR
+-----------------------------------------------------------
+
+Edita capacitor.config.ts en la raíz del proyecto.
+
+Para DESARROLLO (servidor local):
+
+  server: {
+    url: 'http://TU_IP_LOCAL:3000',
+    androidScheme: 'https',
+  }
+
+  Donde TU_IP_LOCAL es la IP de tu PC en la red WiFi
+  (ej. 192.168.1.50). El emulador/teléfono necesita
+  acceder a tu PC por red.
+
+  Para saber tu IP local:
+  - Windows:  ipconfig (busca "IPv4 Address")
+  - macOS:    ifconfig en0
+  - Linux:    ip addr show
+
+Para PRODUCCIÓN (servidor VPS):
+
+  server: {
+    url: 'https://kwiklist.tudominio.com',
+    androidScheme: 'https',
+  }
+
+
+-----------------------------------------------------------
+5. GENERAR EL ICONO DE LA APP
+-----------------------------------------------------------
+
+El icono base está en public/icon.png (1024x1024 px).
+
+Genera los recursos adaptativos para Android:
+
+  npx @capacitor/assets generate \
+    --iconBackgroundColor "#4f46e5" \
+    --iconBackgroundColorDark "#312e81" \
+    --splashBackgroundColor "#4f46e5" \
+    --splashBackgroundColorDark "#312e81"
+
+Esto crea los iconos en todos los tamaños necesarios
+dentro de android/app/src/main/res/.
+
+
+-----------------------------------------------------------
+6. COMPILAR Y SINCRONIZAR
+-----------------------------------------------------------
+
+Compila el frontend y sincroniza con el proyecto Android:
+
+  npm run build
+  npx cap sync
+
+O de forma abreviada:
+
+  npm run cap:build
+
+Esto hace:
+  1. Ejecuta "vite build" → genera la carpeta dist/
+  2. Copia dist/ al proyecto Android nativo
+  3. Sincroniza plugins y configuración de Capacitor
+
+
+-----------------------------------------------------------
+7. ABRIR EN ANDROID STUDIO
+-----------------------------------------------------------
+
+  npx cap open android
+
+O de forma abreviada:
+
+  npm run cap:open
+
+Esto abre Android Studio con el proyecto.
+
+La primera vez tardará unos minutos en:
+  - Descargar Gradle
+  - Indexar el proyecto
+  - Sincronizar dependencias
+
+Espera a que la barra inferior diga "BUILD SUCCESSFUL".
+
+
+-----------------------------------------------------------
+8. EJECUTAR EN EMULADOR O DISPOSITIVO
+-----------------------------------------------------------
+
+Opción A — Emulador:
+
+  1. En Android Studio: Tools > Device Manager
+  2. Crea un dispositivo virtual (ej. Pixel 7, API 34)
+  3. Pulsa el botón verde "Run" (triángulo) en la toolbar
+
+Opción B — Dispositivo físico:
+
+  1. Activa "Depuración USB" en tu teléfono:
+     Ajustes > Acerca del teléfono > toca 7 veces en
+     "Número de compilación" > vuelve a Ajustes >
+     Opciones de desarrollador > Depuración USB
+
+  2. Conecta el teléfono por USB
+  3. Acepta el permiso de depuración en el teléfono
+  4. Selecciona tu dispositivo en el desplegable de
+     Android Studio y pulsa "Run"
+
+
+-----------------------------------------------------------
+9. GENERAR APK DE DEBUG
+-----------------------------------------------------------
+
+Desde Android Studio:
+
+  Build > Build Bundle(s) / APK(s) > Build APK(s)
+
+El archivo se genera en:
+
+  android/app/build/outputs/apk/debug/app-debug.apk
+
+Puedes enviar este archivo a cualquier teléfono Android
+e instalarlo directamente (hay que permitir "Instalar
+desde fuentes desconocidas" en los ajustes del teléfono).
+
+
+-----------------------------------------------------------
+10. GENERAR APK DE RELEASE (FIRMADO)
+-----------------------------------------------------------
+
+Para publicar en Google Play o distribuir de forma
+profesional, necesitas firmar la APK.
+
+10a. Generar un keystore (solo la primera vez):
+
+  En Android Studio:
+  Build > Generate Signed Bundle / APK...
+  > APK > Create new...
+
+  Rellena:
+  - Key store path:  android/kwiklist-release.jks
+  - Password:        (elige una segura y guárdala)
+  - Alias:           kwiklist
+  - Key password:    (puede ser la misma)
+  - Validity:        25 (años)
+  - Nombre, org...:  rellena con tus datos
+
+  IMPORTANTE: Guarda el archivo .jks y las contraseñas
+  en un lugar seguro. Si los pierdes, no podrás
+  actualizar la app en Google Play.
+
+10b. Firmar la APK:
+
+  Build > Generate Signed Bundle / APK...
+  > APK > selecciona tu keystore > Next
+  > release > Finish
+
+El APK firmado se genera en:
+
+  android/app/release/app-release.apk
+
+
+-----------------------------------------------------------
+11. PROBLEMAS COMUNES
+-----------------------------------------------------------
+
+ERROR: "Unable to resolve host"
+  → La URL de capacitor.config.ts no es accesible
+    desde el teléfono/emulador. Comprueba que el
+    servidor esté corriendo y que la IP sea correcta.
+
+ERROR: "net::ERR_CLEARTEXT_NOT_PERMITTED"
+  → Android bloquea HTTP sin TLS. Usa HTTPS o añade
+    en android/app/src/main/AndroidManifest.xml:
+    android:usesCleartextTraffic="true"
+    (solo para desarrollo, nunca en producción)
+
+ERROR: Gradle sync failed
+  → Comprueba que ANDROID_HOME esté configurado.
+  → En Android Studio: File > Invalidate Caches > Restart
+
+ERROR: "SDK location not found"
+  → Crea el archivo android/local.properties con:
+    sdk.dir=C\:\\Users\\TU_USUARIO\\AppData\\Local\\Android\\Sdk
+
+La pantalla se queda en blanco:
+  → Ejecuta "npx cap sync" de nuevo.
+  → Comprueba que "npm run build" genera dist/index.html.
+
+
+-----------------------------------------------------------
+12. RESUMEN DE COMANDOS RÁPIDOS
+-----------------------------------------------------------
+
+  npm install              → Instalar dependencias
+  npx cap add android      → Crear proyecto Android
+  npm run cap:build        → Build + sync
+  npm run cap:open         → Abrir en Android Studio
+  npx cap sync             → Sincronizar sin rebuild
+
+
+===========================================================
+ FIN DE LA GUÍA
+===========================================================

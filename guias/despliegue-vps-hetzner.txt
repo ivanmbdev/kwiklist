@@ -1,0 +1,290 @@
+===========================================================
+ GUÍA: Desplegar KwikList en un VPS de Hetzner Cloud
+===========================================================
+
+Última actualización: abril 2026
+
+Esta guía asume que partes de cero: no tienes servidor,
+ni dominio configurado, ni Docker instalado en él.
+
+
+-----------------------------------------------------------
+1. CREAR EL SERVIDOR EN HETZNER
+-----------------------------------------------------------
+
+1. Ve a https://console.hetzner.cloud y crea una cuenta
+   (o inicia sesión si ya la tienes).
+
+2. Crea un nuevo proyecto (ej. "KwikList").
+
+3. Pulsa "Add Server" con esta configuración:
+
+   - Ubicación: Falkenstein (fsn1) o la que te quede más cerca
+   - Imagen:    Ubuntu 24.04
+   - Tipo:      CX22 (2 vCPU, 4 GB RAM) — suficiente de sobra
+   - SSH Key:   Añade tu clave pública (ver paso 2)
+   - Nombre:    kwiklist-server
+
+4. Apunta la IP pública que te asigna Hetzner (ej. 65.108.xxx.xxx).
+
+
+-----------------------------------------------------------
+2. CONFIGURAR ACCESO SSH
+-----------------------------------------------------------
+
+Si no tienes clave SSH, genera una en tu terminal local:
+
+  ssh-keygen -t ed25519 -C "tu@email.com"
+
+La clave pública estará en:  ~/.ssh/id_ed25519.pub
+Cópiala a Hetzner al crear el servidor (paso 1.3).
+
+Para conectarte:
+
+  ssh root@65.108.xxx.xxx
+
+Recomendación: crear un usuario no-root:
+
+  adduser deploy
+  usermod -aG sudo deploy
+  mkdir -p /home/deploy/.ssh
+  cp ~/.ssh/authorized_keys /home/deploy/.ssh/
+  chown -R deploy:deploy /home/deploy/.ssh
+
+A partir de aquí trabaja como "deploy":
+
+  ssh deploy@65.108.xxx.xxx
+
+
+-----------------------------------------------------------
+3. CONFIGURAR FIREWALL
+-----------------------------------------------------------
+
+Desde la consola de Hetzner (panel web) > Firewalls:
+
+  Regla 1:  TCP  puerto 22   (SSH)
+  Regla 2:  TCP  puerto 80   (HTTP)
+  Regla 3:  TCP  puerto 443  (HTTPS)
+
+Aplica el firewall al servidor.
+
+
+-----------------------------------------------------------
+4. INSTALAR DOCKER Y DOCKER COMPOSE
+-----------------------------------------------------------
+
+Conéctate al servidor y ejecuta:
+
+  sudo apt update && sudo apt upgrade -y
+
+  # Instalar Docker (método oficial)
+  curl -fsSL https://get.docker.com | sudo sh
+
+  # Permitir usar Docker sin sudo
+  sudo usermod -aG docker $USER
+
+  # Cerrar sesión y volver a entrar para que el grupo aplique
+  exit
+  ssh deploy@65.108.xxx.xxx
+
+  # Verificar
+  docker --version
+  docker compose version
+
+
+-----------------------------------------------------------
+5. SUBIR EL CÓDIGO AL SERVIDOR
+-----------------------------------------------------------
+
+Opción A — Git (recomendada):
+
+  Si tu repo está en GitHub/GitLab:
+
+  cd ~
+  git clone https://github.com/TU_USUARIO/kwiklist.git
+  cd kwiklist
+
+Opción B — SCP (sin Git):
+
+  Desde tu PC local:
+
+  scp -r ./kwiklist deploy@65.108.xxx.xxx:~/kwiklist
+
+
+-----------------------------------------------------------
+6. CONFIGURAR VARIABLES DE PRODUCCIÓN
+-----------------------------------------------------------
+
+Antes de levantar Docker, edita las credenciales
+de PostgreSQL en docker-compose.prod.yml si quieres
+cambiar la contraseña por defecto:
+
+  cd ~/kwiklist
+  nano docker-compose.prod.yml
+
+Cambia "kwikpassword" por una contraseña segura en:
+  - db > environment > POSTGRES_PASSWORD
+  - backend > environment > SPRING_DATASOURCE_PASSWORD
+
+Guarda (Ctrl+O, Enter, Ctrl+X).
+
+
+-----------------------------------------------------------
+7. CONSTRUIR Y LEVANTAR LOS CONTENEDORES
+-----------------------------------------------------------
+
+  cd ~/kwiklist
+  docker compose -f docker-compose.prod.yml up -d --build
+
+Esto va a:
+  1. Construir la imagen del frontend (React + Nginx)
+  2. Construir la imagen del backend (Kotlin + Spring Boot)
+  3. Descargar PostgreSQL 16
+  4. Arrancar todo en segundo plano
+
+Comprueba que todo esté running:
+
+  docker compose -f docker-compose.prod.yml ps
+
+Deberías ver 3 servicios con estado "Up":
+  - db
+  - backend
+  - frontend
+
+
+-----------------------------------------------------------
+8. CONFIGURAR DOMINIO Y HTTPS CON CADDY
+-----------------------------------------------------------
+
+Si tienes un dominio (ej. kwiklist.tudominio.com):
+
+8a. En tu proveedor de DNS, crea un registro A:
+
+  kwiklist.tudominio.com  ->  65.108.xxx.xxx
+
+8b. Instalar Caddy en el servidor:
+
+  sudo apt install -y debian-keyring debian-archive-keyring apt-transport-https
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' \
+    | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+  curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' \
+    | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+  sudo apt update
+  sudo apt install caddy
+
+8c. Editar la configuración de Caddy:
+
+  sudo nano /etc/caddy/Caddyfile
+
+Escribe lo siguiente:
+
+  kwiklist.tudominio.com {
+      reverse_proxy localhost:80
+  }
+
+IMPORTANTE: Si usas Caddy, cambia el puerto del frontend
+en docker-compose.prod.yml de "80:80" a "3000:80" para que
+no haya conflicto:
+
+  frontend:
+    ports:
+      - "3000:80"
+
+Y actualiza el Caddyfile:
+
+  kwiklist.tudominio.com {
+      reverse_proxy localhost:3000
+  }
+
+8d. Reiniciar Caddy:
+
+  sudo systemctl restart caddy
+
+Caddy genera automáticamente un certificado HTTPS con
+Let's Encrypt. Prueba acceder a:
+
+  https://kwiklist.tudominio.com
+
+Si NO tienes dominio, puedes acceder directamente por IP:
+
+  http://65.108.xxx.xxx
+
+
+-----------------------------------------------------------
+9. CONFIGURAR LA APP ANDROID
+-----------------------------------------------------------
+
+Si vas a compilar la APK para que apunte a tu VPS,
+edita capacitor.config.ts en tu PC local:
+
+  server: {
+    url: 'https://kwiklist.tudominio.com',
+    androidScheme: 'https',
+  }
+
+Luego recompila:
+
+  npm run cap:build
+  npx cap open android
+
+
+-----------------------------------------------------------
+10. COMANDOS DE MANTENIMIENTO
+-----------------------------------------------------------
+
+Ver logs en tiempo real:
+
+  docker compose -f docker-compose.prod.yml logs -f
+
+Ver logs de un servicio concreto:
+
+  docker compose -f docker-compose.prod.yml logs -f backend
+
+Reiniciar todo:
+
+  docker compose -f docker-compose.prod.yml restart
+
+Parar todo:
+
+  docker compose -f docker-compose.prod.yml down
+
+Actualizar el código y redesplegar:
+
+  cd ~/kwiklist
+  git pull
+  docker compose -f docker-compose.prod.yml up -d --build
+
+Eliminar todo (incluidos datos de la BD):
+
+  docker compose -f docker-compose.prod.yml down -v
+
+
+-----------------------------------------------------------
+11. BACKUPS DE LA BASE DE DATOS
+-----------------------------------------------------------
+
+Crear un backup:
+
+  docker compose -f docker-compose.prod.yml exec db \
+    pg_dump -U kwiklist kwiklist_db > backup_$(date +%F).sql
+
+Restaurar un backup:
+
+  cat backup_2026-04-15.sql | docker compose -f docker-compose.prod.yml exec -T db \
+    psql -U kwiklist kwiklist_db
+
+
+-----------------------------------------------------------
+12. COSTES ESTIMADOS
+-----------------------------------------------------------
+
+  - Hetzner CX22:  ~4.50 EUR/mes
+  - Dominio .com:  ~10-12 EUR/año (opcional)
+  - HTTPS:         Gratis (Caddy + Let's Encrypt)
+
+  Total mínimo: ~4.50 EUR/mes sin dominio propio
+
+
+===========================================================
+ FIN DE LA GUÍA
+===========================================================

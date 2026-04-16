@@ -1,5 +1,0 @@
-{
-  "name": "KwikList Kotlin",
-  "description": "A collaborative shopping list app with a Kotlin/Spring Boot backend, PostgreSQL, and Docker.",
-  "requestFramePermissions": []
-}

@@ -29,8 +29,7 @@ class ShoppingListController(
 
     @GetMapping("/code/{code}")
     fun getListByCode(@PathVariable code: String): ShoppingList {
-        return listRepository.findAll()
-            .find { it.id?.uppercase()?.startsWith(code.uppercase()) == true }
+        return listRepository.findByIdStartingWith(code).firstOrNull()
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Lista no encontrada")
     }
 
@@ -45,6 +44,16 @@ class ShoppingListController(
     fun getList(@PathVariable id: String): ShoppingList {
         return listRepository.findByIdOrNull(id)
             ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Lista no encontrada")
+    }
+
+    @PutMapping("/{id}")
+    fun updateList(@PathVariable id: String, @RequestBody payload: Map<String, String>): ShoppingList {
+        val list = listRepository.findByIdOrNull(id)
+            ?: throw ResponseStatusException(HttpStatus.NOT_FOUND, "Lista no encontrada")
+        payload["name"]?.let { list.name = it }
+        val saved = listRepository.save(list)
+        messagingTemplate.convertAndSend("/topic/lists/$id/update", saved)
+        return saved
     }
 
     @DeleteMapping("/{id}")

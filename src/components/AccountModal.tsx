@@ -1,5 +1,6 @@
-import { useEffect, FormEvent } from 'react';
+import { FormEvent } from 'react';
 import { Plus, Check, LogOut, ClipboardList } from 'lucide-react';
+import useEscapeKey from '../hooks/useEscapeKey';
 
 interface AccountModalProps {
   isLoggedIn: boolean;
@@ -16,53 +17,47 @@ export default function AccountModal({
   onLogout,
   onClose,
 }: AccountModalProps) {
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  useEscapeKey(onClose);
 
   return (
     <div
-      className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in"
+      className="fixed inset-0 bg-zinc-900/40 dark:bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
       aria-label={isLoggedIn ? 'Mi cuenta' : 'Iniciar sesión'}
     >
       <div
-        className="bg-white dark:bg-slate-800 w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative animate-zoom-in"
+        className="bg-white dark:bg-zinc-800 w-full max-w-sm rounded-[2rem] p-8 shadow-2xl relative animate-zoom-in"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-6 right-6 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors"
+          className="absolute top-6 right-6 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 transition-colors"
           aria-label="Cerrar"
         >
           <Plus className="w-6 h-6 rotate-45" />
         </button>
 
-        <div className="w-16 h-16 bg-gradient-to-br from-emerald-400 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg mb-6 relative">
+        <div className="w-16 h-16 bg-gradient-to-br from-indigo-400 to-violet-600 rounded-2xl flex items-center justify-center shadow-lg mb-6 relative">
           <ClipboardList className="w-8 h-8 text-white" />
-          <div className="absolute -bottom-1 -right-1 bg-emerald-400 rounded-full p-0.5 border-2 border-white dark:border-slate-800">
+          <div className="absolute -bottom-1 -right-1 bg-indigo-400 rounded-full p-0.5 border-2 border-white dark:border-zinc-800">
             <Check className="w-3 h-3 text-white" strokeWidth={3} />
           </div>
         </div>
 
         {isLoggedIn ? (
           <>
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
+            <h2 className="text-3xl font-bold text-zinc-900 dark:text-white mb-2">
               Mi Cuenta
             </h2>
-            <p className="text-slate-500 dark:text-slate-400 mb-4">
+            <p className="text-zinc-500 dark:text-zinc-400 mb-4">
               Sesión activa como invitado
             </p>
 
-            <div className="bg-gray-50 dark:bg-slate-900 rounded-xl p-4 mb-8">
-              <p className="text-xs text-slate-400 mb-1">Tu identificador</p>
-              <p className="text-slate-700 dark:text-slate-300 font-mono text-sm break-all">
+            <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-4 mb-8">
+              <p className="text-xs text-zinc-400 mb-1">Tu identificador</p>
+              <p className="text-zinc-700 dark:text-zinc-300 font-mono text-sm break-all">
                 {userId}
               </p>
             </div>
@@ -76,10 +71,10 @@ export default function AccountModal({
           </>
         ) : (
           <>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
+            <h2 className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">
               Guarda tus listas
             </h2>
-            <p className="text-slate-500 dark:text-slate-400 mb-6 text-sm">
+            <p className="text-zinc-500 dark:text-zinc-400 mb-6 text-sm">
               Inicia sesión o regístrate para sincronizar tus listas y no
               perderlas.
             </p>
@@ -92,7 +87,7 @@ export default function AccountModal({
                   id="login-email"
                   type="email"
                   placeholder="Email"
-                  className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-all duration-300"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-zinc-800 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all duration-300"
                   required
                 />
               </div>
@@ -104,13 +99,13 @@ export default function AccountModal({
                   id="login-password"
                   type="password"
                   placeholder="Contraseña"
-                  className="w-full bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-xl px-4 py-3 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-400 transition-all duration-300"
+                  className="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3 text-zinc-800 dark:text-white placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition-all duration-300"
                   required
                 />
               </div>
               <button
                 type="submit"
-                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 mt-2"
+                className="w-full bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5 mt-2"
               >
                 Iniciar Sesión / Registro
               </button>
