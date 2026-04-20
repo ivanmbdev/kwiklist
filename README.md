@@ -1,26 +1,31 @@
 # KwikList
 
-**Trabajo de Fin de Grado — Desarrollo de Aplicaciones Multiplataforma**
+**Proyecto Intermodular — Desarrollo de Aplicaciones Multiplataforma**
 
 KwikList es una aplicación de listas de la compra colaborativas en tiempo real. Permite crear listas, añadir productos, compartirlas con otras personas mediante un código corto y ver los cambios de todos los miembros al instante, sin necesidad de recargar la página. Funciona incluso sin conexión gracias a su sistema de cola offline.
+
+**Despliegue y app Android (estado actual del repo):** el frontend llama al backend con rutas relativas (`/api/lists`, WebSocket en `/ws`). En producción, el mismo origen HTTPS sirve la SPA y el proxy Nginx del contenedor enruta API y WebSocket al backend. La build **Capacitor** está configurada para cargar la interfaz desde `**https://kwiklist.duckdns.org`** (véase [capacitor.config.ts](capacitor.config.ts)): DNS dinámico (DuckDNS) apuntando al VPS, con **TLS** en el servidor (p. ej. Caddy delante del stack, o certificados en el propio Nginx). Para desarrollo en local hay que **comentar** la propiedad `url` del bloque `server` en Capacitor y usar `npm run dev` o una URL temporal (ngrok).
 
 ---
 
 ## Stack tecnológico
 
-| Capa | Tecnología | Versión |
-|------|-----------|---------|
-| Frontend | React, TypeScript, Vite | React 19, Vite 6 |
-| Estilos | Tailwind CSS | 4 |
-| Iconos | Lucide React | — |
-| HTTP Client | Axios | — |
-| WebSocket Client | STOMP.js + SockJS | — |
-| Backend | Kotlin, Spring Boot | Kotlin 1.9, Spring Boot 3.2 |
-| ORM | Spring Data JPA (Hibernate) | — |
-| Base de datos | PostgreSQL | 16 |
-| Contenedores | Docker Compose | — |
-| Proxy reverso | Nginx | — |
-| App nativa | Capacitor | 7 |
+
+| Capa                   | Tecnología                                                 | Versión                     |
+| ---------------------- | ---------------------------------------------------------- | --------------------------- |
+| Frontend               | React, TypeScript, Vite                                    | React 19, Vite 6            |
+| Estilos                | Tailwind CSS                                               | 4                           |
+| Iconos                 | Lucide React                                               | —                           |
+| HTTP Client            | Axios                                                      | —                           |
+| WebSocket Client       | STOMP.js + SockJS                                          | —                           |
+| Backend                | Kotlin, Spring Boot                                        | Kotlin 1.9, Spring Boot 3.2 |
+| ORM                    | Spring Data JPA (Hibernate)                                | —                           |
+| Base de datos          | PostgreSQL                                                 | 16                          |
+| Contenedores           | Docker Compose                                             | —                           |
+| Proxy reverso          | Nginx (en imagen `frontend`)                               | —                           |
+| TLS / DNS (producción) | Caddy u otro proxy + Let's Encrypt; DuckDNS u otro dominio | —                           |
+| App nativa             | Capacitor                                                  | 7                           |
+
 
 ---
 
@@ -64,12 +69,14 @@ Elegí WebSocket con el protocolo **STOMP** por encima porque:
 
 #### Topics utilizados
 
-| Topic | Contenido | Cuándo se emite |
-|-------|-----------|-----------------|
-| `/topic/lists` | Lista completa (`ShoppingList`) | Al crear una lista o cuando un miembro se une |
-| `/topic/lists/{id}` | Producto actualizado (`ShoppingItem`) | Al añadir o marcar/desmarcar un producto |
-| `/topic/lists/{id}/delete` | ID del producto eliminado | Al eliminar un producto |
-| `/topic/lists/{id}/update` | Lista completa actualizada | Al unirse/salir un miembro o editar el nombre |
+
+| Topic                      | Contenido                             | Cuándo se emite                               |
+| -------------------------- | ------------------------------------- | --------------------------------------------- |
+| `/topic/lists`             | Lista completa (`ShoppingList`)       | Al crear una lista o cuando un miembro se une |
+| `/topic/lists/{id}`        | Producto actualizado (`ShoppingItem`) | Al añadir o marcar/desmarcar un producto      |
+| `/topic/lists/{id}/delete` | ID del producto eliminado             | Al eliminar un producto                       |
+| `/topic/lists/{id}/update` | Lista completa actualizada            | Al unirse/salir un miembro o editar el nombre |
+
 
 El frontend se suscribe al topic global `/topic/lists` siempre, y se suscribe/desuscribe dinámicamente a los topics específicos de una lista cuando el usuario abre o cierra una lista.
 
@@ -90,11 +97,13 @@ if (!id) {
 Este ID se usa como identificador del usuario en todas las operaciones: crear listas, unirse a listas, añadir productos. El backend no distingue entre un usuario "real" y uno fantasma — simplemente trabaja con el `userId` que recibe.
 
 **Ventajas:**
+
 - El usuario puede empezar a usar la app al instante.
 - Si cierra y vuelve a abrir el navegador, su `userId` se mantiene y sus listas siguen ahí.
 - En la interfaz, los miembros fantasma se muestran como "Invitado (xxxx)" usando los últimos caracteres de su ID para diferenciarlos.
 
 **Limitaciones conocidas:**
+
 - Si el usuario borra los datos del navegador, pierde su identidad y sus listas.
 - No hay autenticación real: cualquier persona que conozca un `userId` podría suplantar a otro usuario técnicamente. Es una limitación aceptable para un prototipo.
 
@@ -169,10 +178,10 @@ En vez de usar `alert()` y `confirm()` del navegador (que bloquean el hilo princ
 
 Se han aplicado mejoras básicas de accesibilidad:
 
-- **`lang="es"`** en el HTML para que los lectores de pantalla usen la pronunciación correcta.
-- **`aria-label`** en todos los botones de solo icono.
-- **`role="dialog"` y `aria-modal="true"`** en modales.
-- **`<label>` oculto (`sr-only`)** asociado a cada input de formulario.
+- `**lang="es"`** en el HTML para que los lectores de pantalla usen la pronunciación correcta.
+- `**aria-label**` en todos los botones de solo icono.
+- `**role="dialog"` y `aria-modal="true"**` en modales.
+- `**<label>` oculto (`sr-only`)** asociado a cada input de formulario.
 - **Cierre con Escape** y **click en overlay** para cerrar modales.
 - **Botones de eliminar visibles en móvil** con opacidad reducida (en desktop aparecen solo al hover).
 
@@ -182,44 +191,50 @@ Se han aplicado mejoras básicas de accesibilidad:
 
 ### ShoppingList
 
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `id` | `UUID` (generado) | Identificador único, generado por JPA |
-| `name` | `String` | Nombre de la lista (editable) |
-| `creatorId` | `String` | `userId` del creador |
-| `members` | `Set<String>` | Conjunto de `userId` de los miembros |
-| `createdAt` | `LocalDateTime` | Fecha de creación |
-| `items` | `List<ShoppingItem>` | Productos de la lista (relación `OneToMany`) |
+
+| Campo       | Tipo                 | Descripción                                  |
+| ----------- | -------------------- | -------------------------------------------- |
+| `id`        | `UUID` (generado)    | Identificador único, generado por JPA        |
+| `name`      | `String`             | Nombre de la lista (editable)                |
+| `creatorId` | `String`             | `userId` del creador                         |
+| `members`   | `Set<String>`        | Conjunto de `userId` de los miembros         |
+| `createdAt` | `LocalDateTime`      | Fecha de creación                            |
+| `items`     | `List<ShoppingItem>` | Productos de la lista (relación `OneToMany`) |
+
 
 ### ShoppingItem
 
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| `id` | `UUID` (generado) | Identificador único |
-| `name` | `String` | Nombre del producto |
-| `addedBy` | `String` | `userId` de quien lo añadió |
-| `isCompleted` | `Boolean` | Si está marcado como comprado |
-| `shoppingList` | `ShoppingList` | Relación `ManyToOne` (no se serializa a JSON) |
+
+| Campo          | Tipo              | Descripción                                   |
+| -------------- | ----------------- | --------------------------------------------- |
+| `id`           | `UUID` (generado) | Identificador único                           |
+| `name`         | `String`          | Nombre del producto                           |
+| `addedBy`      | `String`          | `userId` de quien lo añadió                   |
+| `isCompleted`  | `Boolean`         | Si está marcado como comprado                 |
+| `shoppingList` | `ShoppingList`    | Relación `ManyToOne` (no se serializa a JSON) |
+
 
 ---
 
 ## API REST
 
-Base URL: `/api/lists`
+Base URL (relativa al mismo host que la SPA): `/api/lists`. En desarrollo con Vite, el proxy envía `/api` y `/ws` a `localhost:8080`. En producción, Nginx del contenedor frontend hace lo mismo hacia el servicio `backend`.
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| `GET` | `/?userId={userId}` | Obtener listas donde el usuario es miembro |
-| `GET` | `/code/{code}` | Buscar lista por código corto |
-| `GET` | `/{id}` | Obtener una lista por su ID completo |
-| `POST` | `/` | Crear una lista nueva |
-| `PUT` | `/{id}` | Actualizar una lista (nombre) |
-| `DELETE` | `/{id}` | Eliminar una lista |
-| `POST` | `/{id}/join` | Unirse a una lista (`{ "userId": "..." }`) |
-| `POST` | `/{id}/leave` | Abandonar una lista (`{ "userId": "..." }`) |
-| `POST` | `/{id}/items` | Añadir un producto a la lista |
-| `PUT` | `/items/{itemId}` | Actualizar un producto (marcar/desmarcar) |
-| `DELETE` | `/items/{itemId}` | Eliminar un producto |
+
+| Método   | Ruta                | Descripción                                 |
+| -------- | ------------------- | ------------------------------------------- |
+| `GET`    | `/?userId={userId}` | Obtener listas donde el usuario es miembro  |
+| `GET`    | `/code/{code}`      | Buscar lista por código corto               |
+| `GET`    | `/{id}`             | Obtener una lista por su ID completo        |
+| `POST`   | `/`                 | Crear una lista nueva                       |
+| `PUT`    | `/{id}`             | Actualizar una lista (nombre)               |
+| `DELETE` | `/{id}`             | Eliminar una lista                          |
+| `POST`   | `/{id}/join`        | Unirse a una lista (`{ "userId": "..." }`)  |
+| `POST`   | `/{id}/leave`       | Abandonar una lista (`{ "userId": "..." }`) |
+| `POST`   | `/{id}/items`       | Añadir un producto a la lista               |
+| `PUT`    | `/items/{itemId}`   | Actualizar un producto (marcar/desmarcar)   |
+| `DELETE` | `/items/{itemId}`   | Eliminar un producto                        |
+
 
 Todos los errores devuelven códigos HTTP estándar (404 si no se encuentra el recurso, 400 si faltan datos obligatorios) usando `ResponseStatusException` de Spring.
 
@@ -237,9 +252,9 @@ Todos los errores devuelven códigos HTTP estándar (404 si no se encuentra el r
 docker-compose up --build
 ```
 
-4. Accede a la aplicación:
-   - **Frontend:** http://localhost:3000
-   - **API REST:** http://localhost:8080/api/lists
+1. Accede a la aplicación:
+  - **Frontend:** [http://localhost:3000](http://localhost:3000)
+  - **API REST:** [http://localhost:8080/api/lists](http://localhost:8080/api/lists)
 
 ### Opción 2: Desarrollo local (frontend fuera de Docker)
 
@@ -250,19 +265,37 @@ docker-compose up --build
 docker-compose up db backend
 ```
 
-3. Instala las dependencias del frontend:
+1. Instala las dependencias del frontend:
 
 ```bash
 npm install
 ```
 
-4. Arranca el servidor de desarrollo de Vite:
+1. Arranca el servidor de desarrollo de Vite:
 
 ```bash
 npm run dev
 ```
 
 Vite redirige automáticamente las peticiones `/api` y `/ws` al backend en `localhost:8080` gracias a la configuración de proxy en `vite.config.ts`.
+
+### Windows (PowerShell)
+
+Si al ejecutar `npm` o `npx` aparece un error de **ejecución de scripts deshabilitada** (`npm.ps1`), usa los lanzadores de CMD:
+
+```powershell
+npm.cmd install
+npm.cmd run build
+npx.cmd cap sync
+```
+
+O bien, una sola vez en tu usuario:
+
+```powershell
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+```
+
+Tras instalar dependencias, `npm run build` encontrará `vite` en `node_modules/.bin`.
 
 ---
 
@@ -283,7 +316,7 @@ Vite redirige automáticamente las peticiones `/api` y `/ws` al backend en `loca
 npm install
 ```
 
-2. Inicializar Capacitor (solo la primera vez):
+1. Inicializar Capacitor (solo la primera vez):
 
 ```bash
 npx cap init "KwikList" "com.kwiklist.app" --web-dir dist
@@ -291,35 +324,43 @@ npx cap init "KwikList" "com.kwiklist.app" --web-dir dist
 
 > Si ya existe `capacitor.config.ts`, este paso se puede saltar.
 
-3. Añadir la plataforma Android (solo la primera vez):
+1. Añadir la plataforma Android (solo la primera vez):
 
 ```bash
 npx cap add android
 ```
 
-4. Generar los iconos para Android desde el icono base (`public/icon.png`):
+1. Generar los iconos para Android desde el icono base (`public/icon.png`):
 
 ```bash
 npx @capacitor/assets generate --iconBackgroundColor '#10b981' --iconBackgroundColorDark '#0d9488'
 ```
 
-5. Compilar el frontend y sincronizar con Android:
+1. Compilar el frontend y sincronizar con Android:
 
 ```bash
 npm run build
 npx cap sync
 ```
 
-6. Abrir el proyecto en Android Studio:
+Equivalente en un solo paso (ver `package.json`):
+
+```bash
+npm run cap:build
+```
+
+1. Abrir el proyecto en Android Studio:
 
 ```bash
 npx cap open android
 ```
 
-7. En Android Studio:
-   - Conecta tu dispositivo Android por USB (con depuración USB activada en Ajustes > Opciones de desarrollador).
-   - Pulsa el botón **Run** (triángulo verde).
-   - La app se instalará en tu dispositivo con el icono de KwikList.
+O: `npm run cap:open`.
+
+1. En Android Studio:
+  - Conecta tu dispositivo Android por USB (con depuración USB activada en Ajustes > Opciones de desarrollador).
+  - Pulsa el botón **Run** (triángulo verde).
+  - La app se instalará en tu dispositivo con el icono de KwikList.
 
 ### Apuntar la app a tu servidor
 
@@ -342,18 +383,21 @@ Para que la app funcione fuera de `localhost` (accesible desde tu móvil y desde
 
 ### Opción A: VPS (recomendado para el TFG)
 
+El flujo descrito en este README coincide con un despliegue tipo **VPS (p. ej. Hetzner)** + **DuckDNS** (`kwiklist.duckdns.org`) y Docker Compose de producción. Ajusta dominio y DNS si usas otro proveedor o nombre.
+
 **Proveedores económicos:**
 
-| Proveedor | Precio | Notas |
-|-----------|--------|-------|
-| [Hetzner](https://www.hetzner.com/cloud) | ~3-4 EUR/mes | Buen rendimiento, datacenters en Europa |
-| [DigitalOcean](https://www.digitalocean.com/) | ~6 USD/mes | Interfaz muy sencilla |
-| [Oracle Cloud Free Tier](https://www.oracle.com/cloud/free/) | Gratis | 1 GB RAM, suficiente para el prototipo |
+
+| Proveedor                                                    | Precio       | Notas                                   |
+| ------------------------------------------------------------ | ------------ | --------------------------------------- |
+| [Hetzner](https://www.hetzner.com/cloud)                     | ~3-4 EUR/mes | Buen rendimiento, datacenters en Europa |
+| [DigitalOcean](https://www.digitalocean.com/)                | ~6 USD/mes   | Interfaz muy sencilla                   |
+| [Oracle Cloud Free Tier](https://www.oracle.com/cloud/free/) | Gratis       | 1 GB RAM, suficiente para el prototipo  |
+
 
 **Pasos para desplegar:**
 
 1. **Crear el VPS** con Ubuntu 22.04 o 24.04 y acceder por SSH.
-
 2. **Instalar Docker y Docker Compose:**
 
 ```bash
@@ -361,20 +405,20 @@ curl -fsSL https://get.docker.com | sh
 sudo usermod -aG docker $USER
 ```
 
-3. **Clonar el repositorio:**
+1. **Clonar el repositorio:**
 
 ```bash
 git clone https://TU-REPO.git kwiklist
 cd kwiklist
 ```
 
-4. **Lanzar con Docker Compose (producción):**
+1. **Lanzar con Docker Compose (producción):**
 
 ```bash
 docker-compose -f docker-compose.prod.yml up -d --build
 ```
 
-5. **Configurar HTTPS** (necesario para WebSocket y Capacitor). La opción más sencilla es usar [Caddy](https://caddyserver.com/) como proxy inverso:
+1. **Configurar HTTPS** (necesario para WebSocket y Capacitor). La opción más sencilla es usar [Caddy](https://caddyserver.com/) como proxy inverso:
 
 ```bash
 # Instalar Caddy
@@ -396,23 +440,21 @@ kwiklist.duckdns.org {
 
 Caddy obtiene y renueva certificados HTTPS automáticamente con Let's Encrypt. Si **no** usas Caddy y publicas el stack directamente en el 80, ajusta el `reverse_proxy` al puerto que tengas mapeado.
 
-6. **`capacitor.config.ts`** ya apunta a `https://kwiklist.duckdns.org`. Recompila la app Android tras cualquier cambio de URL.
+1. `**capacitor.config.ts`** ya apunta a `https://kwiklist.duckdns.org`. Recompila la app Android tras cualquier cambio de URL.
 
 ### Opción B: ngrok (solo para pruebas rápidas)
 
 Si solo quieres probar la app en tu móvil sin montar un VPS:
 
 1. Instala [ngrok](https://ngrok.com/) y créate una cuenta gratuita.
-
 2. Con Docker Compose corriendo en local:
 
 ```bash
 ngrok http 3000
 ```
 
-3. ngrok te dará una URL pública tipo `https://xxxx.ngrok-free.app` que redirige a tu Docker local.
-
-4. Pon esa URL en `capacitor.config.ts`, recompila y ejecuta en tu móvil.
+1. ngrok te dará una URL pública tipo `https://xxxx.ngrok-free.app` que redirige a tu Docker local.
+2. Pon esa URL en `capacitor.config.ts`, recompila y ejecuta en tu móvil.
 
 > **Nota:** La URL de ngrok cambia cada vez que lo reinicias (en el plan gratuito). Es útil para demos y pruebas del TFG, no para producción.
 
@@ -420,15 +462,31 @@ ngrok http 3000
 
 ## Infraestructura (Docker Compose)
 
-El archivo `docker-compose.yml` define tres servicios:
+### Desarrollo (`docker-compose.yml`)
 
-| Servicio | Imagen / Build | Puerto | Función |
-|----------|---------------|--------|---------|
-| `db` | `postgres:16-alpine` | 5432 | Base de datos PostgreSQL |
-| `backend` | Build desde `./backend` | 8080 | API REST + WebSocket (Spring Boot) |
-| `frontend` | Build desde `.` con Nginx | 3000 → 80 | Sirve la SPA y hace proxy reverso al backend |
 
-En producción, Nginx sirve los archivos estáticos del build de Vite y redirige las rutas `/api/` y `/ws/` al contenedor del backend.
+| Servicio   | Imagen / Build            | Puerto (host) | Función                                      |
+| ---------- | ------------------------- | ------------- | -------------------------------------------- |
+| `db`       | `postgres:16-alpine`      | 5432          | Base de datos PostgreSQL                     |
+| `backend`  | Build desde `./backend`   | 8080          | API REST + WebSocket (Spring Boot)           |
+| `frontend` | Build desde `.` con Nginx | **3000** → 80 | Sirve la SPA y hace proxy reverso al backend |
+
+
+### Producción (`docker-compose.prod.yml`)
+
+Misma topología de tres servicios, orientada a servidor: **sin** exponer Postgres ni el backend al exterior; solo el contenedor `frontend` publica HTTP(S) en el host.
+
+
+| Servicio   | Imagen / Build            | Puerto (host)              | Función                                      |
+| ---------- | ------------------------- | -------------------------- | -------------------------------------------- |
+| `db`       | `postgres:16-alpine`      | (solo red interna Compose) | PostgreSQL                                   |
+| `backend`  | Build desde `./backend`   | (solo red interna Compose) | API + WebSocket                              |
+| `frontend` | Build desde `.` con Nginx | **80** → 80, **443** → 443 | SPA + proxy `/api/` y `/ws/` hacia `backend` |
+
+
+El `Dockerfile` del frontend solo configura Nginx en el puerto **80** dentro del contenedor; el mapeo **443** en producción queda listo si añades terminación TLS en ese Nginx. Si usas **Caddy en el host** para HTTPS, suele ocupar los puertos 80/443 del VPS: entonces mapea el frontend solo en loopback (p. ej. `127.0.0.1:8080:80`) y deja que Caddy haga `reverse_proxy` a ese puerto, como se indica más arriba.
+
+En ambos entornos, Nginx sirve el build estático de Vite y enruta `/api/` y `/ws/` al backend.
 
 ---
 
@@ -439,3 +497,4 @@ En producción, Nginx sirve los archivos estáticos del build de Vite y redirige
 - **Ordenar productos** por categoría o manualmente con drag-and-drop.
 - **Historial de compras** para reutilizar listas anteriores.
 - **Tests unitarios y de integración** tanto en frontend (React Testing Library) como en backend (JUnit + MockMvc).
+
